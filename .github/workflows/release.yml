@@ -1,0 +1,57 @@
+on:
+  push:
+    tags:
+    - 'v*'
+name: Handle Release
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13.x
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Get tag version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
+    - name: Build Asset (linux)
+      run: CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-master-label-linux-amd64 ./cmd/k8s-master-label/...
+    - name: Build Asset (darwin)
+      run: CGO_ENABLED=0 GOOS=darwin   GOARCH=amd64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-master-label-darwin-amd64 ./cmd/k8s-master-label/...
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        body: |
+          Build also available as docker image:
+          `daspawnw/k8s-master-label:${{ steps.get_version.outputs.VERSION }}`
+    - name: Upload Release Asset (linux)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/k8s-master-label-linux-amd64
+        asset_name: k8s-master-label-linux-amd64
+        asset_content_type: application/x-executable
+    - name: Upload Release Asset (darwin)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/k8s-master-label-darwin-amd64
+        asset_name: k8s-master-label-darwin-amd64
+        asset_content_type: application/x-mach-binary

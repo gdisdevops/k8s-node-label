@@ -1,0 +1,51 @@
+on: [push, pull_request]
+name: Test
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: [1.13.x, 1.14.x]
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go-version }}
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Test
+      run: go test ./...
+
+  sonarqube:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: SonarCloud Scan
+      uses: sonarsource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13.x
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Calculate coverage
+      run: go test -covermode=count -coverprofile=coverage.out ./...
+    - name: Convert coverage to lcov
+      uses: jandelgado/gcov2lcov-action@v1.0.0
+      with:
+          infile: coverage.out
+          outfile: coverage.lcov
+    - name: Coveralls
+      uses: coverallsapp/github-action@v1.0.1
+      with:
+          github-token: ${{ secrets.github_token }}
+          path-to-lcov: coverage.lcov
