@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 
-	"github.com/daspawnw/k8s-master-label/pkg/common"
-	"github.com/daspawnw/k8s-master-label/pkg/controller"
-	"github.com/daspawnw/k8s-master-label/pkg/spotdiscovery"
+	"github.com/daspawnw/k8s-node-label/pkg/common"
+	"github.com/daspawnw/k8s-node-label/pkg/controller"
+	"github.com/daspawnw/k8s-node-label/pkg/spotdiscovery"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
 )

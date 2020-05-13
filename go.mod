@@ -1,4 +1,4 @@
-module github.com/daspawnw/k8s-master-label
+module github.com/daspawnw/k8s-node-label
 
 go 1.13
 
