@@ -5,6 +5,7 @@ import (
 
 	"github.com/daspawnw/k8s-master-label/pkg/common"
 	"github.com/daspawnw/k8s-master-label/pkg/controller"
+	"github.com/daspawnw/k8s-master-label/pkg/spotdiscovery"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -14,6 +15,7 @@ func main() {
 	excludeNodeFromLoadbalancer := flag.Bool("exclude-loadbalancer", false, "Exclude Master nodes from loadbalancer label")
 	alphaFlags := flag.Bool("alpha-flags", false, "Include alpha labels")
 	excludeEviction := flag.Bool("exclude-evication", false, "Exclude Master node from eviction in case node is not-ready")
+	provider := flag.String("provider", "", "Select a provider for spot instance detection, available values: (aws)")
 	verbose := flag.Bool("v", false, "Print verbose log messages")
 	flag.Parse()
 
@@ -27,5 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Kubernetes client %v", err)
 	}
-	controller.NewNodeController(client, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction).Controller.Run(wait.NeverStop)
+
+	spotProvider := spotdiscovery.SpotProviderFactory(*provider)
+	controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction).Controller.Run(wait.NeverStop)
 }
