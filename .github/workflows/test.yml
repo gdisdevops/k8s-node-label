@@ -20,17 +20,6 @@ jobs:
   sonarqube:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    - name: SonarCloud Scan
-      uses: sonarsource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
     - name: Install Go
       uses: actions/setup-go@v1
       with:
@@ -38,14 +27,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Calculate coverage
-      run: go test -covermode=count -coverprofile=coverage.out ./...
-    - name: Convert coverage to lcov
-      uses: jandelgado/gcov2lcov-action@v1.0.0
-      with:
-          infile: coverage.out
-          outfile: coverage.lcov
-    - name: Coveralls
-      uses: coverallsapp/github-action@v1.0.1
-      with:
-          github-token: ${{ secrets.github_token }}
-          path-to-lcov: coverage.lcov
+      run: go test -coverprofile=coverage.out ./...
+    - name: SonarCloud Scan
+      uses: sonarsource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -1,5 +1,5 @@
-PROJECT_NAME := k8s-master-label
-GITHUB_PATH := github.com/daspawnw/k8s-master-label
+PROJECT_NAME := k8s-node-label
+GITHUB_PATH := github.com/daspawnw/k8s-node-label
 
 all: clean test bin
 
