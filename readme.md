@@ -1,8 +1,10 @@
-# K8S Master Label
+# K8S Node Label
 
-K8S Master Label is a small tool to label Master nodes after an upgrade to 1.16 with the master role.
+K8S Node Label is a small tool to label Nodes based on their role in a kubernetes cluster.
 
-Starting from 1.16 the --node-labels flag disables for security reasons to set the "master" role, this tool runs inside the cluster and marks a node when it starts with the
+## Master Node
+
+Starting from 1.16 the --node-labels flag in kubelet is deprecated for security reasons. This tool runs inside the cluster and marks a node when it starts with the
 "node-role.kubernetes.io/master" label.
 
 Two more options are available:
@@ -13,3 +15,13 @@ Two more options are available:
 For more details please see: https://github.com/kubernetes/enhancements/blob/master/keps/sig-architecture/2019-07-16-node-role-label-use.md
 
 [1] https://github.com/kubernetes/enhancements/blob/master/keps/sig-architecture/2019-07-16-node-role-label-use.md
+
+## Worker Node
+
+To have a similar solution available for worker nodes it also marks worker nodes with the "node-role.kubernetes.io/worker" label.
+
+## Spot instances
+
+Additionally this tool supports spot instance role to mark nodes in case they are based on spot instances.
+Therefore it assigns the "node-role.kubernetes.io/spot-worker" label to nodes, that are part of a spot request.
+Currently only aws is supported, but it can be extended. Pull requests for further providers are welcome :-)
