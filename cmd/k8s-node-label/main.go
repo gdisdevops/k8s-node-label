@@ -16,7 +16,7 @@ func main() {
 	alphaFlags := flag.Bool("alpha-flags", false, "Include alpha labels")
 	excludeEviction := flag.Bool("exclude-evication", false, "Exclude Master node from eviction in case node is not-ready")
 	controlPlaneTaint := flag.String("control-plane-taint", "node-role.kubernetes.io/control-plane", "Override default taint for control-plane nodes")
-	controlPlaneLegacyLabel := flag.Bool("control-plane-legacy-taint", false, "Enable legacy controlPlane label: \"node-role.kubernetes.io/master\"")
+	controlPlaneLegacyLabel := flag.Bool("control-plane-legacy-label", false, "Enable legacy controlPlane label: \"node-role.kubernetes.io/master\"")
 	provider := flag.String("provider", "", "Select a provider for spot instance detection, available values: (aws)")
 	verbose := flag.Bool("v", false, "Print verbose log messages")
 	flag.Parse()
