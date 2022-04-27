@@ -15,6 +15,8 @@ func main() {
 	excludeNodeFromLoadbalancer := flag.Bool("exclude-loadbalancer", false, "Exclude Master nodes from loadbalancer label")
 	alphaFlags := flag.Bool("alpha-flags", false, "Include alpha labels")
 	excludeEviction := flag.Bool("exclude-evication", false, "Exclude Master node from eviction in case node is not-ready")
+	controlPlaneTaint := flag.String("control-plane-taint", "node-role.kubernetes.io/control-plane", "Override default taint for control-plane nodes")
+	controlPlaneLegacyLabel := flag.Bool("control-plane-legacy-taint", false, "Enable legacy controlPlane label: \"node-role.kubernetes.io/master\"")
 	provider := flag.String("provider", "", "Select a provider for spot instance detection, available values: (aws)")
 	verbose := flag.Bool("v", false, "Print verbose log messages")
 	flag.Parse()
@@ -31,5 +33,5 @@ func main() {
 	}
 
 	spotProvider := spotdiscovery.SpotProviderFactory(*provider)
-	controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction).Controller.Run(wait.NeverStop)
+	controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction, *controlPlaneTaint, *controlPlaneLegacyLabel).Controller.Run(wait.NeverStop)
 }
