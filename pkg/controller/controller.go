@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/daspawnw/k8s-node-label/pkg/common"
@@ -23,6 +24,7 @@ type NodeController struct {
 	spotInstanceDiscovery   spotdiscovery.SpotDiscoveryInterface
 	controlPlaneTaint       string
 	controlPlaneLegacyLabel bool
+	customRoleLabel         string
 }
 
 const (
@@ -37,7 +39,7 @@ const (
 	NodeRoleSpotWorkerLabel       = "node-role.kubernetes.io/spot-worker"
 )
 
-func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool) NodeController {
+func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string) NodeController {
 	c := NodeController{
 		client:                  client,
 		includeAlphaLabel:       includeAlphaLabel,
@@ -46,6 +48,7 @@ func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdi
 		spotInstanceDiscovery:   spotInstanceDiscovery,
 		controlPlaneTaint:       controlPlaneTaint,
 		controlPlaneLegacyLabel: controlPlaneLegacyLabel,
+		customRoleLabel:         customRoleLabel,
 	}
 
 	nodeListWatcher := cache.NewListWatchFromClient(
@@ -79,28 +82,58 @@ func (c NodeController) handler(obj interface{}) {
 
 func (c NodeController) markNode(node *v1.Node) {
 	nodeCopy := common.CopyNodeObj(node)
+	nodeChanged := false
+
+	if c.customRoleLabel != "" {
+		customRoleLabelValue, err := c.getCustomRoleLabelValue(node)
+		if err == nil {
+			if !isAlreadyMarkedWithCustomLabel(node, customRoleLabelValue) {
+				addCustomRole(nodeCopy, customRoleLabelValue)
+			}
+		} else {
+			log.Debugf("Node %s doesn't have custom label: %s", node.Name, c.customRoleLabel)
+		}
+	}
 
 	if c.isWorkerNode(node) && !isAlreadyMarkedWorkerNode(node) {
 		log.Infof("Mark worker node %s", node.Name)
 		addWorkerLabels(nodeCopy, c.spotInstanceDiscovery.IsSpotInstance(node))
+		nodeChanged = true
 	} else if c.isControlPlaneNode(node) {
 		if c.controlPlaneLegacyLabel && !isAlreadyMarkedMaster(node) {
 			log.Infof("Mark master node %s", node.Name)
 			addMasterLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node))
+			nodeChanged = true
 		}
 		if !isAlreadyMarkedControlPlane(node) {
 			log.Infof("Mark control-plane node %s", node.Name)
 			addControlPlaneLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node))
+			nodeChanged = true
+		}
+	}
+
+	if nodeChanged {
+		_, err := c.client.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
+		if err != nil {
+			log.Errorf("Failed to mark node %s with error: %v", node.Name, err)
 		}
 	} else {
 		log.Debugf("Skip node %s because it's already marked", node.Name)
-		return
+	}
+}
+
+func (c NodeController) getCustomRoleLabelValue(node *v1.Node) (string, error) {
+	if node.Labels != nil {
+		if label, ok := node.Labels[c.customRoleLabel]; ok {
+			return label, nil
+		}
 	}
 
-	_, err := c.client.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
-	if err != nil {
-		log.Errorf("Failed to mark node %s with error: %v", node.Name, err)
-	}
+	return "", fmt.Errorf("Node %s doesn't have %s label", node.Name, c.customRoleLabel)
+}
+
+func addCustomRole(node *v1.Node, role string) {
+	node.Labels[customRoleLabel(role)] = ""
 }
 
 func addWorkerLabels(node *v1.Node, isSpot bool) {
@@ -197,6 +230,15 @@ func isAlreadyMarkedWorkerNode(node *v1.Node) bool {
 	return false
 }
 
+func isAlreadyMarkedWithCustomLabel(node *v1.Node, customRoleLabelValue string) bool {
+	if node.Labels != nil {
+		if _, ok := node.Labels[customRoleLabel(customRoleLabelValue)]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 func (c NodeController) isControlPlaneNode(node *v1.Node) bool {
 	for _, t := range node.Spec.Taints {
 		if t.Key == c.controlPlaneTaint {
@@ -209,4 +251,8 @@ func (c NodeController) isControlPlaneNode(node *v1.Node) bool {
 
 func (c NodeController) isWorkerNode(node *v1.Node) bool {
 	return !c.isControlPlaneNode(node)
+}
+
+func customRoleLabel(role string) string {
+	return fmt.Sprintf("node-role.kubernetes.io/%s", role)
 }
