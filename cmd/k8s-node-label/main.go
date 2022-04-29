@@ -19,7 +19,7 @@ func main() {
 	controlPlaneLegacyLabel := flag.Bool("control-plane-legacy-label", false, "Enable legacy controlPlane label: \"node-role.kubernetes.io/master\"")
 	provider := flag.String("provider", "", "Select a provider for spot instance detection, available values: (aws)")
 	verbose := flag.Bool("v", false, "Print verbose log messages")
-	customRoleLabel := flag.String("custom-role-label", "", "Add additional `node-role.kubernetes.io/VALUE` labels equal to this label's value")
+	customRoleLabel := flag.String("custom-role-label", "", "Add additional \"node-role.kubernetes.io/VALUE\" labels equal to this label's value")
 	flag.Parse()
 
 	if *verbose {
