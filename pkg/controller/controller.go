@@ -88,7 +88,9 @@ func (c NodeController) markNode(node *v1.Node) {
 		customRoleLabelValue, err := c.getCustomRoleLabelValue(node)
 		if err == nil {
 			if !isAlreadyMarkedWithCustomLabel(node, customRoleLabelValue) {
+				log.Infof("Mark node %s with custom role label %s", node.Name, customRoleLabel(customRoleLabelValue))
 				addCustomRole(nodeCopy, customRoleLabelValue)
+				nodeChanged = true
 			}
 		} else {
 			log.Debugf("Node %s doesn't have custom label: %s", node.Name, c.customRoleLabel)
