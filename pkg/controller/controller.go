@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/daspawnw/k8s-node-label/pkg/common"
@@ -15,12 +16,15 @@ import (
 )
 
 type NodeController struct {
-	client                kubernetes.Interface
-	Controller            cache.Controller
-	includeAlphaLabel     bool
-	excludeLoadBalancing  bool
-	excludeEviction       bool
-	spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface
+	client                  kubernetes.Interface
+	Controller              cache.Controller
+	includeAlphaLabel       bool
+	excludeLoadBalancing    bool
+	excludeEviction         bool
+	spotInstanceDiscovery   spotdiscovery.SpotDiscoveryInterface
+	controlPlaneTaint       string
+	controlPlaneLegacyLabel bool
+	customRoleLabel         string
 }
 
 const (
@@ -29,17 +33,22 @@ const (
 	ExcludeDisruptionLabel        = "node.kubernetes.io/exclude-disruption"
 	NodeRoleMasterLabel           = "node-role.kubernetes.io/master"
 	NodeRoleSpotMasterLabel       = "node-role.kubernetes.io/spot-master"
+	NodeRoleControlPlaneLabel     = "node-role.kubernetes.io/control-plane"
+	NodeRoleSpotControlPlaneLabel = "node-role.kubernetes.io/spot-control-plane"
 	NodeRoleWorkerLabel           = "node-role.kubernetes.io/worker"
 	NodeRoleSpotWorkerLabel       = "node-role.kubernetes.io/spot-worker"
 )
 
-func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool) NodeController {
+func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string) NodeController {
 	c := NodeController{
-		client:                client,
-		includeAlphaLabel:     includeAlphaLabel,
-		excludeLoadBalancing:  excludeLoadBalancing,
-		excludeEviction:       excludeEviction,
-		spotInstanceDiscovery: spotInstanceDiscovery,
+		client:                  client,
+		includeAlphaLabel:       includeAlphaLabel,
+		excludeLoadBalancing:    excludeLoadBalancing,
+		excludeEviction:         excludeEviction,
+		spotInstanceDiscovery:   spotInstanceDiscovery,
+		controlPlaneTaint:       controlPlaneTaint,
+		controlPlaneLegacyLabel: controlPlaneLegacyLabel,
+		customRoleLabel:         customRoleLabel,
 	}
 
 	nodeListWatcher := cache.NewListWatchFromClient(
@@ -73,22 +82,55 @@ func (c NodeController) handler(obj interface{}) {
 
 func (c NodeController) markNode(node *v1.Node) {
 	nodeCopy := common.CopyNodeObj(node)
+	nodeChanged := false
 
-	if isWorkerNode(node) && !isAlreadyMarkedWorkerNode(node) {
+	if c.customRoleLabel != "" {
+		customRoleLabelValue, err := c.getCustomRoleLabelValue(node)
+		if err == nil {
+			if !isAlreadyMarkedWithCustomLabel(node, customRoleLabelValue) {
+				log.Infof("Mark node %s with custom role label %s", node.Name, customRoleLabel(customRoleLabelValue))
+				addCustomRole(nodeCopy, customRoleLabelValue)
+				nodeChanged = true
+			}
+		} else {
+			log.Debugf("Node %s doesn't have custom label: %s", node.Name, c.customRoleLabel)
+		}
+	}
+
+	if c.isWorkerNode(node) && !isAlreadyMarkedWorkerNode(node) {
 		log.Infof("Mark worker node %s", node.Name)
 		addWorkerLabels(nodeCopy, c.spotInstanceDiscovery.IsSpotInstance(node))
-	} else if isMasterNode(node) && !isAlreadyMarkedMaster(node) {
-		log.Infof("Mark master node %s", node.Name)
-		addMasterLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node))
-	} else {
-		log.Debugf("Skip node %s because it's already marked", node.Name)
-		return
+		nodeChanged = true
+	} else if c.isControlPlaneNode(node) {
+		if !isAlreadyMarkedControlPlane(node) || (c.controlPlaneLegacyLabel && !isAlreadyMarkedMaster(node)) {
+			log.Infof("Mark master node %s", node.Name)
+			addControlPlaneLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node), c.controlPlaneLegacyLabel)
+			nodeChanged = true
+		}
 	}
 
-	_, err := c.client.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
-	if err != nil {
-		log.Errorf("Failed to mark node %s with error: %v", node.Name, err)
+	if nodeChanged {
+		_, err := c.client.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
+		if err != nil {
+			log.Errorf("Failed to mark node %s with error: %v", node.Name, err)
+		}
+	} else {
+		log.Debugf("Skip node %s because it's already marked", node.Name)
 	}
+}
+
+func (c NodeController) getCustomRoleLabelValue(node *v1.Node) (string, error) {
+	if node.Labels != nil {
+		if label, ok := node.Labels[c.customRoleLabel]; ok {
+			return label, nil
+		}
+	}
+
+	return "", fmt.Errorf("Node %s doesn't have %s label", node.Name, c.customRoleLabel)
+}
+
+func addCustomRole(node *v1.Node, role string) {
+	node.Labels[customRoleLabel(role)] = ""
 }
 
 func addWorkerLabels(node *v1.Node, isSpot bool) {
@@ -99,13 +141,18 @@ func addWorkerLabels(node *v1.Node, isSpot bool) {
 	}
 }
 
-// for details which labelss are recommended please see:
-// * https://github.com/kubernetes/enhancements/blob/master/keps/sig-architecture/2019-07-16-node-role-label-use.md
-func addMasterLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool) {
+func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool, useLegacyMasterLabel bool) {
 	if isSpot {
-		node.Labels[NodeRoleSpotMasterLabel] = ""
+		if useLegacyMasterLabel {
+			node.Labels[NodeRoleSpotMasterLabel] = ""
+		}
+		node.Labels[NodeRoleSpotControlPlaneLabel] = ""
+
 	} else {
-		node.Labels[NodeRoleMasterLabel] = ""
+		if useLegacyMasterLabel {
+			node.Labels[NodeRoleMasterLabel] = ""
+		}
+		node.Labels[NodeRoleControlPlaneLabel] = ""
 	}
 
 	if excludeEviction == true {
@@ -121,6 +168,7 @@ func addMasterLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing
 	}
 }
 
+//Deprecated. Will be removed in future release
 func isAlreadyMarkedMaster(node *v1.Node) bool {
 	if node.Labels != nil {
 		if _, ok := node.Labels[NodeRoleMasterLabel]; ok {
@@ -128,6 +176,20 @@ func isAlreadyMarkedMaster(node *v1.Node) bool {
 		}
 
 		if _, ok := node.Labels[NodeRoleSpotMasterLabel]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isAlreadyMarkedControlPlane(node *v1.Node) bool {
+	if node.Labels != nil {
+		if _, ok := node.Labels[NodeRoleControlPlaneLabel]; ok {
+			return true
+		}
+
+		if _, ok := node.Labels[NodeRoleSpotControlPlaneLabel]; ok {
 			return true
 		}
 	}
@@ -149,9 +211,18 @@ func isAlreadyMarkedWorkerNode(node *v1.Node) bool {
 	return false
 }
 
-func isMasterNode(node *v1.Node) bool {
+func isAlreadyMarkedWithCustomLabel(node *v1.Node, customRoleLabelValue string) bool {
+	if node.Labels != nil {
+		if _, ok := node.Labels[customRoleLabel(customRoleLabelValue)]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (c NodeController) isControlPlaneNode(node *v1.Node) bool {
 	for _, t := range node.Spec.Taints {
-		if t.Key == NodeRoleMasterLabel {
+		if t.Key == c.controlPlaneTaint {
 			return true
 		}
 	}
@@ -159,6 +230,10 @@ func isMasterNode(node *v1.Node) bool {
 	return false
 }
 
-func isWorkerNode(node *v1.Node) bool {
-	return !isMasterNode(node)
+func (c NodeController) isWorkerNode(node *v1.Node) bool {
+	return !c.isControlPlaneNode(node)
+}
+
+func customRoleLabel(role string) string {
+	return fmt.Sprintf("node-role.kubernetes.io/%s", role)
 }
