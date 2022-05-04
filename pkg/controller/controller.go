@@ -102,14 +102,9 @@ func (c NodeController) markNode(node *v1.Node) {
 		addWorkerLabels(nodeCopy, c.spotInstanceDiscovery.IsSpotInstance(node))
 		nodeChanged = true
 	} else if c.isControlPlaneNode(node) {
-		if c.controlPlaneLegacyLabel && !isAlreadyMarkedMaster(node) {
+		if !isAlreadyMarkedControlPlane(node) || (c.controlPlaneLegacyLabel && !isAlreadyMarkedMaster(node)) {
 			log.Infof("Mark master node %s", node.Name)
-			addMasterLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node))
-			nodeChanged = true
-		}
-		if !isAlreadyMarkedControlPlane(node) {
-			log.Infof("Mark control-plane node %s", node.Name)
-			addControlPlaneLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node))
+			addControlPlaneLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node), c.controlPlaneLegacyLabel)
 			nodeChanged = true
 		}
 	}
@@ -146,33 +141,17 @@ func addWorkerLabels(node *v1.Node, isSpot bool) {
 	}
 }
 
-//Deprecated
-// for details which labels are recommended please see:
-// * https://github.com/kubernetes/enhancements/blob/master/keps/sig-architecture/2019-07-16-node-role-label-use.md
-func addMasterLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool) {
+func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool, useLegacyMasterLabel bool) {
 	if isSpot {
-		node.Labels[NodeRoleSpotMasterLabel] = ""
-	} else {
-		node.Labels[NodeRoleMasterLabel] = ""
-	}
-
-	if excludeEviction == true {
-		node.Labels[ExcludeDisruptionLabel] = "true"
-	}
-
-	if excludeLoadBalancing == true {
-		node.Labels[ExcludeLoadBalancerLabel] = "true"
-
-		if includeAlphaLabel == true {
-			node.Labels[AlphaExcludeLoadBalancerLabel] = "true"
+		if useLegacyMasterLabel {
+			node.Labels[NodeRoleSpotMasterLabel] = ""
 		}
-	}
-}
-
-func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool) {
-	if isSpot {
 		node.Labels[NodeRoleSpotControlPlaneLabel] = ""
+
 	} else {
+		if useLegacyMasterLabel {
+			node.Labels[NodeRoleMasterLabel] = ""
+		}
 		node.Labels[NodeRoleControlPlaneLabel] = ""
 	}
 
