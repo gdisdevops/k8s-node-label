@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	const NAMESPACE_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	const NamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
 	kubeconfig := flag.String("kube-config", "", "Path to a kubeconfig file")
 	excludeNodeFromLoadbalancer := flag.Bool("exclude-loadbalancer", false, "Exclude Master nodes from loadbalancer label")
@@ -33,7 +33,7 @@ func main() {
 	// leases
 	leaseId := flag.String("id", uuid.New().String(), "Lease holder identity name")
 	leaseLockName := flag.String("lease-lock-name", "k8s-node-label", "Lease lock resource name")
-	defaultNs := getCurrentNamespace(NAMESPACE_FILE)
+	defaultNs := getCurrentNamespace(NamespaceFile)
 	leaseLockNamespace := flag.String("lease-lock-namespace", defaultNs, "Lease lock resource namespace")
 
 	flag.Parse()
