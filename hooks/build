@@ -1,6 +1,0 @@
-#!/bin/bash
-
-echo "overwriting docker build -f $DOCKERFILE_PATH -t $IMAGE_NAME ."
-
-echo "docker build -f ${DOCKERFILE_PATH} --build-arg RELEASE_VERSION=${DOCKER_TAG} -t ${IMAGE_NAME} ."
-docker build -f ${DOCKERFILE_PATH} --build-arg RELEASE_VERSION=${DOCKER_TAG} -t ${IMAGE_NAME} .
