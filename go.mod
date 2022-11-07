@@ -4,11 +4,13 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.44.131
+	github.com/google/uuid v1.1.2
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 	k8s.io/api v0.23.13
 	k8s.io/apimachinery v0.23.13
 	k8s.io/client-go v0.23.13
+	k8s.io/klog/v2 v2.30.0
 )
 
 require (
@@ -39,7 +41,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/klog/v2 v2.30.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
