@@ -58,7 +58,7 @@ jobs:
         asset_content_type: application/x-mach-binary
 
   docker:
-    name: Docker Build
+    name: Release docker (fork)
     if: github.repository == 'daspawnw/k8s-node-label'
     runs-on: ubuntu-latest
 
