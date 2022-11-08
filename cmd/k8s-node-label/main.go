@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/klog/v2"
 	"os"
 	"time"
 
@@ -90,9 +89,7 @@ func main() {
 		RetryPeriod:     5 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
-				// we're notified when we start - this is where you would
-				// usually put your code
-				// run(ctx)
+				log.Infof("Starting workload as lead: %s", *leaseId)
 				controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction, *controlPlaneTaint, *controlPlaneLegacyLabel, *customRoleLabel).Controller.Run(wait.NeverStop)
 			},
 			OnStoppedLeading: func() {
@@ -106,7 +103,7 @@ func main() {
 					// I just got the lock
 					return
 				}
-				klog.Infof("new leader elected: %s", identity)
+				log.Infof("new leader elected: %s", identity)
 			},
 		},
 	})
