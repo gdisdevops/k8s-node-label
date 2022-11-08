@@ -84,6 +84,7 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v2
         with:
+          build-args: RELEASE_VERSION=${{ steps.get_version.outputs.VERSION }}
           push: true
           tags: daspawnw/k8s-node-label:${{ steps.get_version.outputs.VERSION }}
 
@@ -155,6 +156,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: format('RELEASE_VERSION={0}', github.ref_name)
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
