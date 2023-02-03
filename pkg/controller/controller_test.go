@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,6 +99,25 @@ var UnManagedNode = &v1.Node{
 		Name: "test-unmanaged-node",
 	},
 	Spec: v1.NodeSpec{},
+}
+var UninitializedNode = &v1.Node{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "test-uninitialized-control-plane-node",
+	},
+	Spec: v1.NodeSpec{
+		ProviderID: "aws:///eu-central-1a/i-123uzu123",
+		Taints: []v1.Taint{
+			{
+				Key:    NodeRoleControlPlaneLabel,
+				Effect: "NoSchedule",
+			},
+			{
+				Key:    NodeUninitialziedTaint,
+				Value:  "true",
+				Effect: "NoSchedule",
+			},
+		},
+	},
 }
 
 func TestHandlerShouldSetNodeRoleMasterAndControlPlaneForMaster(t *testing.T) {
@@ -407,33 +427,29 @@ func TestIsNodeInitializedTrue(t *testing.T) {
 }
 
 func TestIsNodeInitializedFalse(t *testing.T) {
-	var uninitializedNode = &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-spot-control-plane-node",
-		},
-		Spec: v1.NodeSpec{
-			ProviderID: "aws:///eu-central-1/i-123uzu123",
-			Taints: []v1.Taint{
-				{
-					Key:    NodeRoleControlPlaneLabel,
-					Effect: "NoSchedule",
-				},
-				{
-					Key:    NodeUninitialziedTaint,
-					Value:  "true",
-					Effect: "NoSchedule",
-				},
-			},
-		},
-	}
 
-	clientset := fake.NewSimpleClientset(uninitializedNode)
+	clientset := fake.NewSimpleClientset(UninitializedNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
 
-	result := c.isNodeInitialized(uninitializedNode)
+	result := c.isNodeInitialized(UninitializedNode)
 	expected := false
 	if result != expected {
 		t.Errorf("Node is initialized, but shouldn't be.")
+	}
+}
+
+func TestHandlerShouldNotSetLabelIfNodeUninitialized(t *testing.T) {
+	clientset := fake.NewSimpleClientset(UninitializedNode)
+	testingMockDiscovery := TestingMockDiscovery{}
+
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c.handler(UninitializedNode)
+
+	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-uninitialized-control-plane-node", metav1.GetOptions{})
+	for k, v := range foundNode.Labels {
+		if strings.Contains(k, "node-role.kubernetes.io/") {
+			t.Errorf("Unexpected label %s on node %s, but shouldn't be assigned", v, "test-uninitialized-control-plane-node")
+		}
 	}
 }
