@@ -37,6 +37,7 @@ const (
 	NodeRoleSpotControlPlaneLabel = "node-role.kubernetes.io/spot-control-plane"
 	NodeRoleWorkerLabel           = "node-role.kubernetes.io/worker"
 	NodeRoleSpotWorkerLabel       = "node-role.kubernetes.io/spot-worker"
+	NodeUninitialziedTaint        = "node.cloudprovider.kubernetes.io/uninitialized"
 )
 
 func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string) NodeController {
@@ -77,7 +78,11 @@ func (c NodeController) handler(obj interface{}) {
 		return
 	}
 	log.Debugf("Received handler event for node %s", node.Name)
-	c.markNode(node)
+	if c.isNodeInitialized(node) {
+		c.markNode(node)
+	} else {
+		log.Warnf("Node %s was not yet initialzied by cloud controller.", node.Name)
+	}
 }
 
 func (c NodeController) markNode(node *v1.Node) {
@@ -168,7 +173,7 @@ func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBal
 	}
 }
 
-//Deprecated. Will be removed in future release
+// Deprecated. Will be removed in future release
 func isAlreadyMarkedMaster(node *v1.Node) bool {
 	if node.Labels != nil {
 		if _, ok := node.Labels[NodeRoleMasterLabel]; ok {
@@ -236,4 +241,13 @@ func (c NodeController) isWorkerNode(node *v1.Node) bool {
 
 func customRoleLabel(role string) string {
 	return fmt.Sprintf("node-role.kubernetes.io/%s", role)
+}
+
+func (c NodeController) isNodeInitialized(node *v1.Node) bool {
+	for i := range node.Spec.Taints {
+		if node.Spec.Taints[i].Key == NodeUninitialziedTaint {
+			return false
+		}
+	}
+	return true
 }

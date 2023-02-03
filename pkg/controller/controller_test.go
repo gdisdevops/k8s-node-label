@@ -374,3 +374,66 @@ func TestHandlerShouldNotSetCustomRoleIfLabelNotPresent(t *testing.T) {
 		t.Errorf("Expected no label %s on node %s, but was assigned", NodeRoleMasterLabel, "test-worker-node")
 	}
 }
+
+func TestIsNodeInitializedTrue(t *testing.T) {
+	var initializedNode = &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-spot-control-plane-node",
+		},
+		Spec: v1.NodeSpec{
+			ProviderID: "aws:///eu-central-1/i-123uzu123",
+			Taints: []v1.Taint{
+				{
+					Key:    NodeRoleControlPlaneLabel,
+					Effect: "NoSchedule",
+				},
+				{
+					Key:    "dumm-taint",
+					Value:  "true",
+					Effect: "NoSchedule",
+				},
+			},
+		},
+	}
+	clientset := fake.NewSimpleClientset(initializedNode)
+	testingMockDiscovery := TestingMockDiscovery{}
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+
+	result := c.isNodeInitialized(initializedNode)
+	expected := true
+	if result != expected {
+		t.Errorf("Node is not initialized, but should be.")
+	}
+}
+
+func TestIsNodeInitializedFalse(t *testing.T) {
+	var uninitializedNode = &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-spot-control-plane-node",
+		},
+		Spec: v1.NodeSpec{
+			ProviderID: "aws:///eu-central-1/i-123uzu123",
+			Taints: []v1.Taint{
+				{
+					Key:    NodeRoleControlPlaneLabel,
+					Effect: "NoSchedule",
+				},
+				{
+					Key:    NodeUninitialziedTaint,
+					Value:  "true",
+					Effect: "NoSchedule",
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(uninitializedNode)
+	testingMockDiscovery := TestingMockDiscovery{}
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+
+	result := c.isNodeInitialized(uninitializedNode)
+	expected := false
+	if result != expected {
+		t.Errorf("Node is initialized, but shouldn't be.")
+	}
+}
