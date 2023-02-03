@@ -447,9 +447,9 @@ func TestHandlerShouldNotSetLabelIfNodeUninitialized(t *testing.T) {
 	c.handler(UninitializedNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-uninitialized-control-plane-node", metav1.GetOptions{})
-	for k, v := range foundNode.Labels {
+	for k, _ := range foundNode.Labels {
 		if strings.Contains(k, "node-role.kubernetes.io/") {
-			t.Errorf("Unexpected label %s on node %s, but shouldn't be assigned", v, "test-uninitialized-control-plane-node")
+			t.Errorf("Unexpected label %s on node %s, but shouldn't be assigned", k, "test-uninitialized-control-plane-node")
 		}
 	}
 }
