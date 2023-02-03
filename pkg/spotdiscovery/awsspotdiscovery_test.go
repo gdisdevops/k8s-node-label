@@ -14,7 +14,7 @@ var WorkerNode = &v1.Node{
 		Name: "test-worker-node",
 	},
 	Spec: v1.NodeSpec{
-		ProviderID: "aws:///eu-central-1/i-123qwe123",
+		ProviderID: "aws:///eu-central-1c/i-123qwe123",
 	},
 }
 var SpotWorkerNode = &v1.Node{
@@ -22,7 +22,7 @@ var SpotWorkerNode = &v1.Node{
 		Name: "test-spot-node",
 	},
 	Spec: v1.NodeSpec{
-		ProviderID: "aws:///eu-central-1/i-123asd132",
+		ProviderID: "aws:///eu-central-1b/i-123asd132",
 	},
 }
 var UnManagedNode = &v1.Node{
@@ -84,4 +84,12 @@ func (c *MockEC2Client) DescribeSpotInstanceRequests(in *ec2.DescribeSpotInstanc
 	return &ec2.DescribeSpotInstanceRequestsOutput{
 		SpotInstanceRequests: spotInstances,
 	}, nil
+}
+
+func TestReceiveInstanceID(t *testing.T) {
+	result := receiveInstanceID(WorkerNode)
+	expectedInstanceId := "i-123qwe123"
+	if *result != expectedInstanceId {
+		t.Errorf("Expected instanceId: %s, got: %s", expectedInstanceId, *result)
+	}
 }
