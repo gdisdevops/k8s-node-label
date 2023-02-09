@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,6 +99,25 @@ var UnManagedNode = &v1.Node{
 		Name: "test-unmanaged-node",
 	},
 	Spec: v1.NodeSpec{},
+}
+var UninitializedNode = &v1.Node{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "test-uninitialized-control-plane-node",
+	},
+	Spec: v1.NodeSpec{
+		ProviderID: "aws:///eu-central-1a/i-123uzu123",
+		Taints: []v1.Taint{
+			{
+				Key:    NodeRoleControlPlaneLabel,
+				Effect: "NoSchedule",
+			},
+			{
+				Key:    NodeUninitialziedTaint,
+				Value:  "true",
+				Effect: "NoSchedule",
+			},
+		},
+	},
 }
 
 func TestHandlerShouldSetNodeRoleMasterAndControlPlaneForMaster(t *testing.T) {
@@ -372,5 +392,64 @@ func TestHandlerShouldNotSetCustomRoleIfLabelNotPresent(t *testing.T) {
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-worker-node", metav1.GetOptions{})
 	if _, ok := foundNode.Labels["node-role.kubernetes.io/customRole"]; ok {
 		t.Errorf("Expected no label %s on node %s, but was assigned", NodeRoleMasterLabel, "test-worker-node")
+	}
+}
+
+func TestIsNodeInitializedTrue(t *testing.T) {
+	var initializedNode = &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-spot-control-plane-node",
+		},
+		Spec: v1.NodeSpec{
+			ProviderID: "aws:///eu-central-1/i-123uzu123",
+			Taints: []v1.Taint{
+				{
+					Key:    NodeRoleControlPlaneLabel,
+					Effect: "NoSchedule",
+				},
+				{
+					Key:    "dumm-taint",
+					Value:  "true",
+					Effect: "NoSchedule",
+				},
+			},
+		},
+	}
+	clientset := fake.NewSimpleClientset(initializedNode)
+	testingMockDiscovery := TestingMockDiscovery{}
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+
+	result := c.isNodeInitialized(initializedNode)
+	expected := true
+	if result != expected {
+		t.Errorf("Node is not initialized, but should be.")
+	}
+}
+
+func TestIsNodeInitializedFalse(t *testing.T) {
+
+	clientset := fake.NewSimpleClientset(UninitializedNode)
+	testingMockDiscovery := TestingMockDiscovery{}
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+
+	result := c.isNodeInitialized(UninitializedNode)
+	expected := false
+	if result != expected {
+		t.Errorf("Node is initialized, but shouldn't be.")
+	}
+}
+
+func TestHandlerShouldNotSetLabelIfNodeUninitialized(t *testing.T) {
+	clientset := fake.NewSimpleClientset(UninitializedNode)
+	testingMockDiscovery := TestingMockDiscovery{}
+
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c.handler(UninitializedNode)
+
+	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-uninitialized-control-plane-node", metav1.GetOptions{})
+	for k, _ := range foundNode.Labels {
+		if strings.Contains(k, "node-role.kubernetes.io/") {
+			t.Errorf("Unexpected label %s on node %s, but shouldn't be assigned", k, "test-uninitialized-control-plane-node")
+		}
 	}
 }
