@@ -30,7 +30,7 @@ jobs:
       run: go test -coverprofile=coverage.out ./...
     - name: SonarCloud Scan
       uses: sonarsource/sonarcloud-github-action@master
-      if: ${{ env.SONAR_PROJECT_KEY }} != ''
+      if: github.repository == 'daspawnw/k8s-node-label'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
