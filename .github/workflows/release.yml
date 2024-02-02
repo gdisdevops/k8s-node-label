@@ -19,10 +19,14 @@ jobs:
       id: get_version
       run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
 
-    - name: Build Asset (linux)
+    - name: Build Asset (linux amd64)
       run: CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-linux-amd64 ./cmd/k8s-node-label/...
-    - name: Build Asset (darwin)
+    - name: Build Asset (linux arm64)
+      run: CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-linux-arm64 ./cmd/k8s-node-label/...
+    - name: Build Asset (darwin amd64)
       run: CGO_ENABLED=0 GOOS=darwin   GOARCH=amd64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-darwin-amd64 ./cmd/k8s-node-label/...
+    - name: Build Asset (darwin arm64)
+      run: CGO_ENABLED=0 GOOS=darwin   GOARCH=arm64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-darwin-arm64 ./cmd/k8s-node-label/...
 
     - name: Create Release
       id: create_release
@@ -38,7 +42,7 @@ jobs:
           Build also available as docker image:
           `daspawnw/k8s-node-label:${{ steps.get_version.outputs.VERSION }}`
 
-    - name: Upload Release Asset (linux)
+    - name: Upload Release Asset (linux amd64)
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,7 +51,7 @@ jobs:
         asset_path: bin/k8s-node-label-linux-amd64
         asset_name: k8s-node-label-linux-amd64
         asset_content_type: application/x-executable
-    - name: Upload Release Asset (darwin)
+    - name: Upload Release Asset (darwin amd64)
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,6 +59,24 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: bin/k8s-node-label-darwin-amd64
         asset_name: k8s-node-label-darwin-amd64
+        asset_content_type: application/x-mach-binary
+    - name: Upload Release Asset (linux arm64)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/k8s-node-label-linux-arm64
+        asset_name: k8s-node-label-linux-arm64
+        asset_content_type: application/x-executable
+    - name: Upload Release Asset (darwin arm64)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/k8s-node-label-darwin-arm64
+        asset_name: k8s-node-label-darwin-arm64
         asset_content_type: application/x-mach-binary
 
   docker:
@@ -85,6 +107,7 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v2
         with:
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: daspawnw/k8s-node-label:${{ steps.get_version.outputs.VERSION }}
 
@@ -152,6 +175,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
