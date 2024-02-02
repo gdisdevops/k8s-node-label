@@ -18,7 +18,6 @@ jobs:
       run: go test ./...
 
   sonarqube:
-    if: ${{ secrets.SONAR_PROJECT_KEY }} != ''
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
@@ -31,6 +30,7 @@ jobs:
       run: go test -coverprofile=coverage.out ./...
     - name: SonarCloud Scan
       uses: sonarsource/sonarcloud-github-action@master
+      if: ${{ env.SONAR_PROJECT_KEY }} != ''
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
