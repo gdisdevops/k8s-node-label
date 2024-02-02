@@ -18,6 +18,7 @@ jobs:
       run: go test ./...
 
   sonarqube:
+    if: ${{ secrets.SONAR_PROJECT_KEY }} != ''
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
