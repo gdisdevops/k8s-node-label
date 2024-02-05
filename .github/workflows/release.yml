@@ -8,21 +8,26 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-    - name: Install Go
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.19.x
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: './go.mod'
 
     - name: Get tag version
       id: get_version
       run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
 
-    - name: Build Asset (linux)
+    - name: Build Asset (linux amd64)
       run: CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-linux-amd64 ./cmd/k8s-node-label/...
-    - name: Build Asset (darwin)
+    - name: Build Asset (linux arm64)
+      run: CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-linux-arm64 ./cmd/k8s-node-label/...
+    - name: Build Asset (darwin amd64)
       run: CGO_ENABLED=0 GOOS=darwin   GOARCH=amd64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-darwin-amd64 ./cmd/k8s-node-label/...
+    - name: Build Asset (darwin arm64)
+      run: CGO_ENABLED=0 GOOS=darwin   GOARCH=arm64 go build -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}'" -o bin/k8s-node-label-darwin-arm64 ./cmd/k8s-node-label/...
 
     - name: Create Release
       id: create_release
@@ -38,7 +43,7 @@ jobs:
           Build also available as docker image:
           `daspawnw/k8s-node-label:${{ steps.get_version.outputs.VERSION }}`
 
-    - name: Upload Release Asset (linux)
+    - name: Upload Release Asset (linux amd64)
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,7 +52,7 @@ jobs:
         asset_path: bin/k8s-node-label-linux-amd64
         asset_name: k8s-node-label-linux-amd64
         asset_content_type: application/x-executable
-    - name: Upload Release Asset (darwin)
+    - name: Upload Release Asset (darwin amd64)
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,6 +60,24 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: bin/k8s-node-label-darwin-amd64
         asset_name: k8s-node-label-darwin-amd64
+        asset_content_type: application/x-mach-binary
+    - name: Upload Release Asset (linux arm64)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/k8s-node-label-linux-arm64
+        asset_name: k8s-node-label-linux-arm64
+        asset_content_type: application/x-executable
+    - name: Upload Release Asset (darwin arm64)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/k8s-node-label-darwin-arm64
+        asset_name: k8s-node-label-darwin-arm64
         asset_content_type: application/x-mach-binary
 
   docker:
@@ -66,13 +89,16 @@ jobs:
     needs: release
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -83,8 +109,9 @@ jobs:
 
       - name: Build and push
         id: docker_build
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: daspawnw/k8s-node-label:${{ steps.get_version.outputs.VERSION }}
 
@@ -108,7 +135,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
 #      # Install the cosign tool except on PR
 #      # https://github.com/sigstore/cosign-installer
@@ -118,20 +145,18 @@ jobs:
 #        with:
 #          cosign-release: 'v1.11.0'
 
-#      - name: Set up QEMU
-#        uses: docker/setup-qemu-action@v2
-#        with:
-#          platforms: 'arm64,arm'
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       # Workaround: https://github.com/docker/build-push-action/issues/461
       - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -149,13 +174,13 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-#          platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: ${{ format('RELEASE_VERSION={0}', github.ref_name) }}
@@ -172,7 +197,7 @@ jobs:
           severity: 'MEDIUM,CRITICAL,HIGH'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
