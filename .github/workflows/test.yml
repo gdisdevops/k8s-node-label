@@ -18,6 +18,23 @@ jobs:
     - name: Test
       run: go test ./...
 
+  trivy-scan-fs:
+    name: Trivy - scan fs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner in fs mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          severity: 'MEDIUM,CRITICAL,HIGH' #report all severities
+          exit-code: '1'
+          format: 'table'
+
+
   sonarqube:
     runs-on: ubuntu-latest
     if: github.repository == 'daspawnw/k8s-node-label'
@@ -114,14 +131,15 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: ${{ format('RELEASE_VERSION={0}', github.ref_name) }}
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        if: ${{ github.event_name != 'pull_request' }}
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
           format: 'table'
