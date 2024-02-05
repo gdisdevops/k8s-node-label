@@ -10,12 +10,13 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v5
       with:
-        go-version: ${{ matrix.go-version }}
+#        go-version: ${{ matrix.go-version }}
+        go-version-file: './go.mod'
     - name: Test
       run: go test ./...
 
@@ -26,10 +27,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v5
       with:
         go-version-file: './go.mod'
-        cache: true
 
     - name: Calculate coverage
       run: go test -coverprofile=coverage.out ./...
