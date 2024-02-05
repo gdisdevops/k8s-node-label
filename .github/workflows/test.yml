@@ -46,7 +46,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.repository == 'daspawnw/k8s-node-label'
     needs:
     - test
 
