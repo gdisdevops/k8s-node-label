@@ -4,7 +4,6 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.19.x]
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
@@ -15,13 +14,13 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v5
       with:
-#        go-version: ${{ matrix.go-version }}
         go-version-file: './go.mod'
     - name: Test
       run: go test ./...
 
   sonarqube:
     runs-on: ubuntu-latest
+    if: github.repository == 'daspawnw/k8s-node-label'
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -36,7 +35,6 @@ jobs:
 
     - name: SonarCloud Scan
       uses: sonarsource/sonarcloud-github-action@master
-      if: github.repository == 'daspawnw/k8s-node-label'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
