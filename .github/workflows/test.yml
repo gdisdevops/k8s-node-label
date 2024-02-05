@@ -27,7 +27,7 @@ jobs:
       uses: actions/setup-go@v1
       with:
         go-version-file: './go.mod'
-#        cache: true
+        cache: true
 
     - name: Calculate coverage
       run: go test -coverprofile=coverage.out ./...
