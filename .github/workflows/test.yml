@@ -65,7 +65,8 @@ jobs:
 
     if: github.ref == 'refs/heads/master' && github.repository == 'daspawnw/k8s-node-label'
     needs:
-    - test
+      - test
+      - trivy-scan-fs
 
     steps:
       - uses: actions/checkout@v4
