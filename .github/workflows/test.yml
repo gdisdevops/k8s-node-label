@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref != 'daspawnw/k8s-node-label'
+    if: github.repository != 'daspawnw/k8s-node-label'
     needs:
       - test
       - trivy-scan-fs
