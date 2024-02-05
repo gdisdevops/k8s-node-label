@@ -20,15 +20,18 @@ jobs:
   sonarqube:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
     - name: Install Go
       uses: actions/setup-go@v1
       with:
         go-version-file: './go.mod'
         cache: true
-    - name: Checkout code
-      uses: actions/checkout@v2
+
     - name: Calculate coverage
       run: go test -coverprofile=coverage.out ./...
+
     - name: SonarCloud Scan
       uses: sonarsource/sonarcloud-github-action@master
       if: github.repository == 'daspawnw/k8s-node-label'
