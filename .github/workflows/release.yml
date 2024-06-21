@@ -7,7 +7,6 @@ jobs:
   release:
     permissions:
       contents: write
-      discussions: write
     name: Release
     runs-on: ubuntu-latest
     steps:
