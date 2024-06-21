@@ -17,3 +17,6 @@ bin/%:
 
 run:
 	go run ${GITHUB_PATH}/cmd/${PROJECT_NAME}/...
+
+docker:
+	docker buildx build -t k8s-node-label:local --load .
