@@ -89,7 +89,7 @@ spec:
     spec:
       serviceAccountName: k8s-node-label
       containers:
-        - image: daspawnw/k8s-node-label:v0.6
+        - image: daspawnw/k8s-node-label:v0.8
           name: k8s-node-label
           env:
             - name: AWS_REGION
