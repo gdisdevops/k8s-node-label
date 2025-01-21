@@ -25,6 +25,7 @@ type NodeController struct {
 	controlPlaneTaint       string
 	controlPlaneLegacyLabel bool
 	customRoleLabel         string
+	karpenterEnabled        bool
 }
 
 const (
@@ -38,9 +39,11 @@ const (
 	NodeRoleWorkerLabel           = "node-role.kubernetes.io/worker"
 	NodeRoleSpotWorkerLabel       = "node-role.kubernetes.io/spot-worker"
 	NodeUninitialziedTaint        = "node.cloudprovider.kubernetes.io/uninitialized"
+	NodeKarpenterManagedLabelKey  = "karpenter.sh/nodepool"
+	NodeKarpenterLabel            = "node-role.kubernetes.io/karpenter"
 )
 
-func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string) NodeController {
+func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string, karpenterEnabled bool) NodeController {
 	c := NodeController{
 		client:                  client,
 		includeAlphaLabel:       includeAlphaLabel,
@@ -50,6 +53,7 @@ func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdi
 		controlPlaneTaint:       controlPlaneTaint,
 		controlPlaneLegacyLabel: controlPlaneLegacyLabel,
 		customRoleLabel:         customRoleLabel,
+		karpenterEnabled:        karpenterEnabled,
 	}
 
 	nodeListWatcher := cache.NewListWatchFromClient(
@@ -114,6 +118,10 @@ func (c NodeController) markNode(node *v1.Node) {
 		}
 	}
 
+	if c.karpenterEnabled && isNodeManagedByKarpenter(node) {
+		addKarpenterLabel(nodeCopy)
+	}
+
 	if nodeChanged {
 		_, err := c.client.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
 		if err != nil {
@@ -144,6 +152,10 @@ func addWorkerLabels(node *v1.Node, isSpot bool) {
 	} else {
 		node.Labels[NodeRoleWorkerLabel] = ""
 	}
+}
+
+func addKarpenterLabel(node *v1.Node) {
+	node.Labels[NodeKarpenterLabel] = ""
 }
 
 func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool, useLegacyMasterLabel bool) {
@@ -250,4 +262,13 @@ func (c NodeController) isNodeInitialized(node *v1.Node) bool {
 		}
 	}
 	return true
+}
+
+func isNodeManagedByKarpenter(node *v1.Node) bool {
+	if node.Labels == nil {
+		return false
+	}
+	_, ok := node.Labels[NodeKarpenterManagedLabelKey]
+
+	return ok
 }
