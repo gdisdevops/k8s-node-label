@@ -119,6 +119,7 @@ func (c NodeController) markNode(node *v1.Node) {
 	}
 
 	if c.karpenterEnabled && isNodeManagedByKarpenter(node) {
+		log.Infof("Mark node %s with karpenter role label %s", node.Name, NodeKarpenterLabel)
 		addKarpenterLabel(nodeCopy)
 	}
 
