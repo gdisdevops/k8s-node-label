@@ -1,1 +1,8 @@
 bin/
+.github
+examples
+*.md
+sonar-project.properties
+.gitignore
+hooks
+Makefile
