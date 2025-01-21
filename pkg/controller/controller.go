@@ -121,6 +121,7 @@ func (c NodeController) markNode(node *v1.Node) {
 	if c.karpenterEnabled && isNodeManagedByKarpenter(node) {
 		log.Infof("Mark node %s with karpenter role label %s", node.Name, NodeKarpenterLabel)
 		addKarpenterLabel(nodeCopy)
+		nodeChanged = true
 	}
 
 	if nodeChanged {
@@ -153,10 +154,6 @@ func addWorkerLabels(node *v1.Node, isSpot bool) {
 	} else {
 		node.Labels[NodeRoleWorkerLabel] = ""
 	}
-}
-
-func addKarpenterLabel(node *v1.Node) {
-	node.Labels[NodeKarpenterLabel] = ""
 }
 
 func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBalancing bool, excludeEviction bool, isSpot bool, useLegacyMasterLabel bool) {
@@ -271,5 +268,18 @@ func isNodeManagedByKarpenter(node *v1.Node) bool {
 	}
 	_, ok := node.Labels[NodeKarpenterManagedLabelKey]
 
+	return ok
+}
+
+func addKarpenterLabel(node *v1.Node) {
+	node.Labels[NodeKarpenterLabel] = ""
+}
+
+func isAlreadyMarkedKarpenterNode(node *v1.Node) bool {
+	if node.Labels == nil {
+		return false
+	}
+
+	_, ok := node.Labels[NodeKarpenterLabel]
 	return ok
 }
