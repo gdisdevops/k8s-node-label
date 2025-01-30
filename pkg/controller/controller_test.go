@@ -74,6 +74,19 @@ var WorkerNode = &v1.Node{
 		ProviderID: "aws:///eu-central-1/i-123qwe123",
 	},
 }
+
+var KarpenterWorkerNode = &v1.Node{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "test-worker-node",
+		Labels: map[string]string{
+			NodeKarpenterManagedLabelKey: "some-pool",
+		},
+	},
+	Spec: v1.NodeSpec{
+		ProviderID: "aws:///eu-central-1/i-123qwe123",
+	},
+}
+
 var WorkerNodeWithCustomLabel = &v1.Node{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "test-worker-node-with-label",
@@ -124,7 +137,7 @@ func TestHandlerShouldSetNodeRoleMasterAndControlPlaneForMaster(t *testing.T) {
 	clientset := fake.NewSimpleClientset(MasterNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleMasterLabel, true, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleMasterLabel, true, "", false)
 	c.handler(MasterNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-master-node", metav1.GetOptions{})
@@ -140,7 +153,7 @@ func TestHandlerShouldSetSpotMasterRoleAndControlPlaneForMaster(t *testing.T) {
 	clientset := fake.NewSimpleClientset(SoptMasterNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleMasterLabel, true, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleMasterLabel, true, "", false)
 	c.handler(SoptMasterNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-spot-master", metav1.GetOptions{})
@@ -156,7 +169,7 @@ func TestHandlerShouldSetNodeRoleMasterAndControlPlaneForControlPlane(t *testing
 	clientset := fake.NewSimpleClientset(ControlPlaneNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, true, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, true, "", false)
 	c.handler(ControlPlaneNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-control-plane-node", metav1.GetOptions{})
@@ -172,7 +185,7 @@ func TestHandlerShouldSetSpotMasterRoleAndControlPlaneForControlPlane(t *testing
 	clientset := fake.NewSimpleClientset(SoptControlPlaneNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, true, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, true, "", false)
 	c.handler(SoptControlPlaneNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-spot-control-plane-node", metav1.GetOptions{})
@@ -188,7 +201,7 @@ func TestHandlerShouldSetNodeRoleControlPlane(t *testing.T) {
 	clientset := fake.NewSimpleClientset(ControlPlaneNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(ControlPlaneNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-control-plane-node", metav1.GetOptions{})
@@ -204,7 +217,7 @@ func TestHandlerShouldSetSpotControlPlane(t *testing.T) {
 	clientset := fake.NewSimpleClientset(SoptControlPlaneNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(SoptControlPlaneNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-spot-control-plane-node", metav1.GetOptions{})
@@ -220,7 +233,7 @@ func TestHandlerShouldSetWorkerRoleIfWorker(t *testing.T) {
 	clientset := fake.NewSimpleClientset(WorkerNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(WorkerNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-worker-node", metav1.GetOptions{})
@@ -236,7 +249,7 @@ func TestHandlerShouldSetSpotWorkerRoleIfSpotWorker(t *testing.T) {
 	clientset := fake.NewSimpleClientset(SpotWorkerNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(SpotWorkerNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-spot-node", metav1.GetOptions{})
@@ -255,7 +268,7 @@ func TestHandlerShouldSetWorkerRoleIfNotSet(t *testing.T) {
 	clientset := fake.NewSimpleClientset(UnManagedNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(UnManagedNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-unmanaged-node", metav1.GetOptions{})
@@ -268,7 +281,7 @@ func TestHandlerShouldPreventMasterFromLoadbalancing(t *testing.T) {
 	clientset := fake.NewSimpleClientset(MasterNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, true, true, false, NodeRoleMasterLabel, true, "")
+	c := NewNodeController(clientset, testingMockDiscovery, true, true, false, NodeRoleMasterLabel, true, "", false)
 	c.handler(MasterNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-master-node", metav1.GetOptions{})
@@ -293,7 +306,7 @@ func TestHandlerShouldPreventControlPlaneFromLoadbalancing(t *testing.T) {
 	clientset := fake.NewSimpleClientset(ControlPlaneNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, true, true, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, true, true, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(ControlPlaneNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-control-plane-node", metav1.GetOptions{})
@@ -318,7 +331,7 @@ func TestHandlerShouldExcludeNodeFromEviction(t *testing.T) {
 	clientset := fake.NewSimpleClientset(ControlPlaneNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(ControlPlaneNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-control-plane-node", metav1.GetOptions{})
@@ -347,7 +360,7 @@ func TestCustomRoleLabelFound(t *testing.T) {
 	customRoleLabel := "customLabel"
 	expectedRole := "customRole"
 	var expectedErr error = nil
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, customRoleLabel)
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, customRoleLabel, false)
 	role, err := c.getCustomRoleLabelValue(WorkerNodeWithCustomLabel)
 
 	assert.Equalf(t, expectedRole, role, "Role %s is not equal to %s", role, expectedRole)
@@ -360,7 +373,7 @@ func TestCustomRoleLabelNotFound(t *testing.T) {
 	customRoleLabel := "customLabel"
 	expectedRole := ""
 	expectedErr := fmt.Errorf("Node %s doesn't have %s label", WorkerNode.Name, customRoleLabel)
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, customRoleLabel)
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, customRoleLabel, false)
 	role, err := c.getCustomRoleLabelValue(WorkerNode)
 
 	assert.Equalf(t, expectedRole, role, "Role %s is not equal to %s", role, expectedRole)
@@ -373,7 +386,7 @@ func TestHandlerShouldSetCustomRoleIfLabelPresent(t *testing.T) {
 	clientset := fake.NewSimpleClientset(WorkerNodeWithCustomLabel)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "customLabel")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "customLabel", false)
 	c.handler(WorkerNodeWithCustomLabel)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-worker-node-with-label", metav1.GetOptions{})
@@ -386,7 +399,7 @@ func TestHandlerShouldNotSetCustomRoleIfLabelNotPresent(t *testing.T) {
 	clientset := fake.NewSimpleClientset(WorkerNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "customLabel")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "customLabel", false)
 	c.handler(WorkerNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-worker-node", metav1.GetOptions{})
@@ -417,7 +430,7 @@ func TestIsNodeInitializedTrue(t *testing.T) {
 	}
 	clientset := fake.NewSimpleClientset(initializedNode)
 	testingMockDiscovery := TestingMockDiscovery{}
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 
 	result := c.isNodeInitialized(initializedNode)
 	expected := true
@@ -430,7 +443,7 @@ func TestIsNodeInitializedFalse(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(UninitializedNode)
 	testingMockDiscovery := TestingMockDiscovery{}
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 
 	result := c.isNodeInitialized(UninitializedNode)
 	expected := false
@@ -443,7 +456,7 @@ func TestHandlerShouldNotSetLabelIfNodeUninitialized(t *testing.T) {
 	clientset := fake.NewSimpleClientset(UninitializedNode)
 	testingMockDiscovery := TestingMockDiscovery{}
 
-	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "")
+	c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", false)
 	c.handler(UninitializedNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-uninitialized-control-plane-node", metav1.GetOptions{})
@@ -451,5 +464,62 @@ func TestHandlerShouldNotSetLabelIfNodeUninitialized(t *testing.T) {
 		if strings.Contains(k, "node-role.kubernetes.io/") {
 			t.Errorf("Unexpected label %s on node %s, but shouldn't be assigned", k, "test-uninitialized-control-plane-node")
 		}
+	}
+}
+
+func TestKubernetesNodeLabeling(t *testing.T) {
+	testCases := []struct {
+		name             string
+		karpenterEnabled bool
+		node             *v1.Node
+		expectedLabels   map[string]string
+	}{
+		{
+			name:             "karpenter disabled for karpenter node",
+			karpenterEnabled: false,
+			node:             KarpenterWorkerNode,
+			expectedLabels: map[string]string{
+				"karpenter.sh/nodepool":          "some-pool",
+				"node-role.kubernetes.io/worker": "",
+			},
+		},
+		{
+			name:             "karpenter enabled for karpenter node",
+			karpenterEnabled: true,
+			node:             KarpenterWorkerNode,
+			expectedLabels: map[string]string{
+				"karpenter.sh/nodepool":             "some-pool",
+				"node-role.kubernetes.io/worker":    "",
+				"node-role.kubernetes.io/karpenter": "",
+			},
+		},
+		{
+			name:             "karpenter enabled for non-karpenter node",
+			karpenterEnabled: true,
+			node:             WorkerNode,
+			expectedLabels: map[string]string{
+				"node-role.kubernetes.io/worker": "",
+			},
+		},
+		{
+			name:             "karpenter enabled for control-plane node",
+			karpenterEnabled: true,
+			node:             ControlPlaneNode,
+			expectedLabels: map[string]string{
+				"node-role.kubernetes.io/control-plane": "",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clientset := fake.NewSimpleClientset(tc.node)
+			testingMockDiscovery := TestingMockDiscovery{}
+			c := NewNodeController(clientset, testingMockDiscovery, false, false, false, NodeRoleControlPlaneLabel, false, "", tc.karpenterEnabled)
+			c.handler(tc.node)
+
+			foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), tc.node.Name, metav1.GetOptions{})
+			assert.Equal(t, tc.expectedLabels, foundNode.Labels)
+		})
 	}
 }

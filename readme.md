@@ -37,3 +37,7 @@ Currently only aws is supported, but it can be extended. Pull requests for furth
 It is possible to label your nodes with role taken from custom label (for example `custom-label`). To enable this node use this tool with parameter `custom-role-label` equal to the name of that custom label. Then nodes with this `custom-label` will be also labelled with corresponding `node-role.kubernetes.io/*` label.
 
 For example, node with `custom-label=special-node` will be also labelled with `node-role.kubernetes.io/special-node`.
+
+## Karpenter nodes
+
+Nodes labeled with `karpenter.sh/nodepool` will be also labelled with `node-role.kubernetes.io/karpenter`. This behaviour can be turned off with `-karpenter=false` flag.

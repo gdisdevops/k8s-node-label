@@ -34,6 +34,7 @@ func main() {
 	leaseLockName := flag.String("lease-lock-name", "k8s-node-label", "Lease lock resource name")
 	defaultNs := getCurrentNamespace(NamespaceFile)
 	leaseLockNamespace := flag.String("lease-lock-namespace", defaultNs, "Lease lock resource namespace")
+	karpenterEnabled := flag.Bool("karpenter-enabled", true, "Karpenter-managed nodes labeled with karpenter.sh/nodepool will be also labeled with node-role.kubernetes.io/karpenter")
 
 	flag.Parse()
 
@@ -90,7 +91,7 @@ func main() {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				log.Infof("Starting workload as lead: %s", *leaseId)
-				controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction, *controlPlaneTaint, *controlPlaneLegacyLabel, *customRoleLabel).Controller.Run(wait.NeverStop)
+				controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction, *controlPlaneTaint, *controlPlaneLegacyLabel, *customRoleLabel, *karpenterEnabled).Controller.Run(wait.NeverStop)
 			},
 			OnStoppedLeading: func() {
 				// we can do cleanup here
