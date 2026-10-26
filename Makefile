@@ -20,3 +20,6 @@ run:
 
 docker:
 	docker buildx build -t k8s-node-label:local --load .
+
+vet:
+	go vet ${GITHUB_PATH}/...
