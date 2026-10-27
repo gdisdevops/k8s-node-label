@@ -1,19 +1,20 @@
 package spotdiscovery
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-func SpotProviderFactory(provider string) (SpotDiscoveryInterface, error) {
+func SpotProviderFactory(ctx context.Context, provider string) (SpotDiscoveryInterface, error) {
 	if provider == "aws" {
-		awsSession, err := session.NewSession()
+		cfg, err := config.LoadDefaultConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
-		awsConfig := &aws.Config{}
-		ec2Client := ec2.New(awsSession, awsConfig)
+		ec2Client := ec2.NewFromConfig(cfg)
 		return EC2SpotDiscovery{
 			ec2Client: ec2Client,
 		}, nil

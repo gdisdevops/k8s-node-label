@@ -43,7 +43,7 @@ const (
 	NodeKarpenterLabel            = "node-role.kubernetes.io/karpenter"
 )
 
-func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string, karpenterEnabled bool) NodeController {
+func NewNodeController(ctx context.Context, client kubernetes.Interface, spotInstanceDiscovery spotdiscovery.SpotDiscoveryInterface, excludeLoadBalancing bool, includeAlphaLabel bool, excludeEviction bool, controlPlaneTaint string, controlPlaneLegacyLabel bool, customRoleLabel string, karpenterEnabled bool) NodeController {
 	c := NodeController{
 		client:                  client,
 		includeAlphaLabel:       includeAlphaLabel,
@@ -62,34 +62,38 @@ func NewNodeController(client kubernetes.Interface, spotInstanceDiscovery spotdi
 		v1.NamespaceAll,
 		fields.Everything())
 
-	_, controller := cache.NewInformer(nodeListWatcher,
-		&v1.Node{},
-		60*time.Second,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    c.handler,
-			UpdateFunc: func(old, new interface{}) { c.handler(new) },
+	opts := cache.InformerOptions{
+		ListerWatcher: nodeListWatcher,
+		ObjectType:    &v1.Node{},
+		ResyncPeriod:  60 * time.Second,
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    c.getHandler(ctx),
+			UpdateFunc: func(old, new interface{}) { c.getHandler(ctx)(new) },
 		},
-	)
+	}
+
+	_, controller := cache.NewInformerWithOptions(opts)
 
 	c.Controller = controller
 
 	return c
 }
-
-func (c NodeController) handler(obj interface{}) {
-	node, ok := obj.(*v1.Node)
-	if !ok {
-		return
-	}
-	log.Debugf("Received handler event for node %s", node.Name)
-	if c.isNodeInitialized(node) {
-		c.markNode(node)
-	} else {
-		log.Warnf("Node %s was not yet initialzied by cloud controller.", node.Name)
+func (c NodeController) getHandler(ctx context.Context) func(obj interface{}) {
+	return func(obj interface{}) {
+		node, ok := obj.(*v1.Node)
+		if !ok {
+			return
+		}
+		log.Debugf("Received handler event for node %s", node.Name)
+		if c.isNodeInitialized(node) {
+			c.markNode(ctx, node)
+		} else {
+			log.Warnf("Node %s was not yet initialzied by cloud controller.", node.Name)
+		}
 	}
 }
 
-func (c NodeController) markNode(node *v1.Node) {
+func (c NodeController) markNode(ctx context.Context, node *v1.Node) {
 	nodeCopy := common.CopyNodeObj(node)
 	nodeChanged := false
 
@@ -108,12 +112,12 @@ func (c NodeController) markNode(node *v1.Node) {
 
 	if c.isWorkerNode(node) && !isAlreadyMarkedWorkerNode(node) {
 		log.Infof("Mark worker node %s", node.Name)
-		addWorkerLabels(nodeCopy, c.spotInstanceDiscovery.IsSpotInstance(node))
+		addWorkerLabels(nodeCopy, c.spotInstanceDiscovery.IsSpotInstance(ctx, node))
 		nodeChanged = true
 	} else if c.isControlPlaneNode(node) {
 		if !isAlreadyMarkedControlPlane(node) || (c.controlPlaneLegacyLabel && !isAlreadyMarkedMaster(node)) {
 			log.Infof("Mark master node %s", node.Name)
-			addControlPlaneLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(node), c.controlPlaneLegacyLabel)
+			addControlPlaneLabels(nodeCopy, c.includeAlphaLabel, c.excludeLoadBalancing, c.excludeEviction, c.spotInstanceDiscovery.IsSpotInstance(ctx, node), c.controlPlaneLegacyLabel)
 			nodeChanged = true
 		}
 	}
@@ -125,7 +129,7 @@ func (c NodeController) markNode(node *v1.Node) {
 	}
 
 	if nodeChanged {
-		_, err := c.client.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
+		_, err := c.client.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
 		if err != nil {
 			log.Errorf("Failed to mark node %s with error: %v", node.Name, err)
 		}
@@ -141,7 +145,7 @@ func (c NodeController) getCustomRoleLabelValue(node *v1.Node) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Node %s doesn't have %s label", node.Name, c.customRoleLabel)
+	return "", fmt.Errorf("node %s doesn't have %s label", node.Name, c.customRoleLabel)
 }
 
 func addCustomRole(node *v1.Node, role string) {
@@ -170,14 +174,14 @@ func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBal
 		node.Labels[NodeRoleControlPlaneLabel] = ""
 	}
 
-	if excludeEviction == true {
+	if excludeEviction {
 		node.Labels[ExcludeDisruptionLabel] = "true"
 	}
 
-	if excludeLoadBalancing == true {
+	if excludeLoadBalancing {
 		node.Labels[ExcludeLoadBalancerLabel] = "true"
 
-		if includeAlphaLabel == true {
+		if includeAlphaLabel {
 			node.Labels[AlphaExcludeLoadBalancerLabel] = "true"
 		}
 	}

@@ -1,7 +1,7 @@
 PROJECT_NAME := k8s-node-label
 GITHUB_PATH := github.com/daspawnw/k8s-node-label
 
-all: clean test bin
+all: clean vet test bin
 
 clean:
 	rm -rf bin

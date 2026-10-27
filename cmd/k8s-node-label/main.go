@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+	"time"
+
 	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"os"
-	"time"
 
 	"github.com/daspawnw/k8s-node-label/pkg/common"
 	"github.com/daspawnw/k8s-node-label/pkg/controller"
@@ -55,7 +56,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	spotProvider, err := spotdiscovery.SpotProviderFactory(*provider)
+	ctx := context.TODO()
+
+	spotProvider, err := spotdiscovery.SpotProviderFactory(ctx, *provider)
 	if err != nil {
 		log.Fatalf("can't get spot provider client: %v", err)
 		os.Exit(1)
@@ -91,7 +94,7 @@ func main() {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				log.Infof("Starting workload as lead: %s", *leaseId)
-				controller.NewNodeController(client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction, *controlPlaneTaint, *controlPlaneLegacyLabel, *customRoleLabel, *karpenterEnabled).Controller.Run(wait.NeverStop)
+				controller.NewNodeController(ctx, client, spotProvider, *excludeNodeFromLoadbalancer, *alphaFlags, *excludeEviction, *controlPlaneTaint, *controlPlaneLegacyLabel, *customRoleLabel, *karpenterEnabled).Controller.Run(wait.NeverStop)
 			},
 			OnStoppedLeading: func() {
 				// we can do cleanup here

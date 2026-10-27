@@ -1,10 +1,14 @@
 package spotdiscovery
 
 import (
+	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,7 +41,7 @@ func TestIsSpotShouldReturnFalseForNonSpotInstance(t *testing.T) {
 		ec2Client: &MockEC2Client{},
 	}
 
-	response := spot.IsSpotInstance(WorkerNode)
+	response := spot.IsSpotInstance(t.Context(), WorkerNode)
 	if response == true {
 		t.Errorf("Expected no spot response for test-worker-node, but has spot response")
 	}
@@ -48,10 +52,8 @@ func TestIsSpotShouldReturnTrueForSpotInstance(t *testing.T) {
 		ec2Client: &MockEC2Client{},
 	}
 
-	response := spot.IsSpotInstance(SpotWorkerNode)
-	if response == false {
-		t.Errorf("Expected spot response for test-spot-node, but no response available")
-	}
+	response := spot.IsSpotInstance(t.Context(), SpotWorkerNode)
+	assert.True(t, response)
 }
 
 func TestIsSpotShouldReturnFalseForNonProviderManagedInstance(t *testing.T) {
@@ -59,24 +61,20 @@ func TestIsSpotShouldReturnFalseForNonProviderManagedInstance(t *testing.T) {
 		ec2Client: &MockEC2Client{},
 	}
 
-	response := spot.IsSpotInstance(UnManagedNode)
-	if response == true {
-		t.Errorf("Expected no spot response for test-worker-node, but has spot response")
-	}
+	response := spot.IsSpotInstance(t.Context(), UnManagedNode)
+	assert.False(t, response)
 }
 
-type MockEC2Client struct {
-	ec2iface.EC2API
-}
+type MockEC2Client struct{}
 
-func (c *MockEC2Client) DescribeSpotInstanceRequests(in *ec2.DescribeSpotInstanceRequestsInput) (*ec2.DescribeSpotInstanceRequestsOutput, error) {
-	spotInstances := []*ec2.SpotInstanceRequest{}
+func (c *MockEC2Client) DescribeSpotInstanceRequests(_ context.Context, in *ec2.DescribeSpotInstanceRequestsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotInstanceRequestsOutput, error) {
+	spotInstances := []types.SpotInstanceRequest{}
 	if len(in.Filters) == 1 && len(in.Filters[0].Values) == 1 {
 		instanceID := in.Filters[0].Values[0]
 
-		if *instanceID == "i-123asd132" || *instanceID == "i-123uzu123" {
-			spotInstances = append(spotInstances, &ec2.SpotInstanceRequest{
-				InstanceId: instanceID,
+		if instanceID == "i-123asd132" || instanceID == "i-123uzu123" {
+			spotInstances = append(spotInstances, types.SpotInstanceRequest{
+				InstanceId: aws.String(instanceID),
 			})
 		}
 	}
@@ -89,7 +87,6 @@ func (c *MockEC2Client) DescribeSpotInstanceRequests(in *ec2.DescribeSpotInstanc
 func TestReceiveInstanceID(t *testing.T) {
 	result := receiveInstanceID(WorkerNode)
 	expectedInstanceId := "i-123qwe123"
-	if *result != expectedInstanceId {
-		t.Errorf("Expected instanceId: %s, got: %s", expectedInstanceId, *result)
-	}
+	require.NotNil(t, result)
+	assert.Equal(t, expectedInstanceId, *result)
 }
