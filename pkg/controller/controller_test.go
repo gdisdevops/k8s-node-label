@@ -372,7 +372,7 @@ func TestCustomRoleLabelNotFound(t *testing.T) {
 	testingMockDiscovery := TestingMockDiscovery{}
 	customRoleLabel := "customLabel"
 	expectedRole := ""
-	expectedErr := fmt.Errorf("Node %s doesn't have %s label", WorkerNode.Name, customRoleLabel)
+	expectedErr := fmt.Errorf("node %s doesn't have %s label", WorkerNode.Name, customRoleLabel)
 	c := NewNodeController(t.Context(), clientset, testingMockDiscovery, false, false, true, NodeRoleControlPlaneLabel, false, customRoleLabel, false)
 	role, err := c.getCustomRoleLabelValue(WorkerNode)
 
@@ -460,7 +460,7 @@ func TestHandlerShouldNotSetLabelIfNodeUninitialized(t *testing.T) {
 	c.getHandler(t.Context())(UninitializedNode)
 
 	foundNode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), "test-uninitialized-control-plane-node", metav1.GetOptions{})
-	for k, _ := range foundNode.Labels {
+	for k := range foundNode.Labels {
 		if strings.Contains(k, "node-role.kubernetes.io/") {
 			t.Errorf("Unexpected label %s on node %s, but shouldn't be assigned", k, "test-uninitialized-control-plane-node")
 		}

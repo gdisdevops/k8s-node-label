@@ -145,7 +145,7 @@ func (c NodeController) getCustomRoleLabelValue(node *v1.Node) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Node %s doesn't have %s label", node.Name, c.customRoleLabel)
+	return "", fmt.Errorf("node %s doesn't have %s label", node.Name, c.customRoleLabel)
 }
 
 func addCustomRole(node *v1.Node, role string) {
@@ -174,14 +174,14 @@ func addControlPlaneLabels(node *v1.Node, includeAlphaLabel bool, excludeLoadBal
 		node.Labels[NodeRoleControlPlaneLabel] = ""
 	}
 
-	if excludeEviction == true {
+	if excludeEviction {
 		node.Labels[ExcludeDisruptionLabel] = "true"
 	}
 
-	if excludeLoadBalancing == true {
+	if excludeLoadBalancing {
 		node.Labels[ExcludeLoadBalancerLabel] = "true"
 
-		if includeAlphaLabel == true {
+		if includeAlphaLabel {
 			node.Labels[AlphaExcludeLoadBalancerLabel] = "true"
 		}
 	}

@@ -43,9 +43,9 @@ func (d EC2SpotDiscovery) IsSpotInstance(ctx context.Context, node *v1.Node) boo
 }
 
 func receiveInstanceID(node *v1.Node) *string {
-	r, _ := regexp.Compile(".*?:[\\/]{2,3}.*?\\/(.*)$")
+	r, _ := regexp.Compile(`.*?:[\/]{2,3}.*?\/(.*)$`)
 	matches := r.FindStringSubmatch(node.Spec.ProviderID)
-	if matches != nil && len(matches) == 2 {
+	if len(matches) == 2 {
 		return &matches[1]
 	}
 

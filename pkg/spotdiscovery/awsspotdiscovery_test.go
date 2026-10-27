@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -51,9 +53,7 @@ func TestIsSpotShouldReturnTrueForSpotInstance(t *testing.T) {
 	}
 
 	response := spot.IsSpotInstance(t.Context(), SpotWorkerNode)
-	if response == false {
-		t.Errorf("Expected spot response for test-spot-node, but no response available")
-	}
+	assert.True(t, response)
 }
 
 func TestIsSpotShouldReturnFalseForNonProviderManagedInstance(t *testing.T) {
@@ -62,9 +62,7 @@ func TestIsSpotShouldReturnFalseForNonProviderManagedInstance(t *testing.T) {
 	}
 
 	response := spot.IsSpotInstance(t.Context(), UnManagedNode)
-	if response == true {
-		t.Errorf("Expected no spot response for test-worker-node, but has spot response")
-	}
+	assert.False(t, response)
 }
 
 type MockEC2Client struct{}
@@ -89,7 +87,6 @@ func (c *MockEC2Client) DescribeSpotInstanceRequests(_ context.Context, in *ec2.
 func TestReceiveInstanceID(t *testing.T) {
 	result := receiveInstanceID(WorkerNode)
 	expectedInstanceId := "i-123qwe123"
-	if *result != expectedInstanceId {
-		t.Errorf("Expected instanceId: %s, got: %s", expectedInstanceId, *result)
-	}
+	require.NotNil(t, result)
+	assert.Equal(t, expectedInstanceId, *result)
 }
