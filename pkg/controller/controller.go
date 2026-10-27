@@ -62,14 +62,17 @@ func NewNodeController(ctx context.Context, client kubernetes.Interface, spotIns
 		v1.NamespaceAll,
 		fields.Everything())
 
-	_, controller := cache.NewInformer(nodeListWatcher,
-		&v1.Node{},
-		60*time.Second,
-		cache.ResourceEventHandlerFuncs{
+	opts := cache.InformerOptions{
+		ListerWatcher: nodeListWatcher,
+		ObjectType:    &v1.Node{},
+		ResyncPeriod:  60 * time.Second,
+		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.getHandler(ctx),
 			UpdateFunc: func(old, new interface{}) { c.getHandler(ctx)(new) },
 		},
-	)
+	}
+
+	_, controller := cache.NewInformerWithOptions(opts)
 
 	c.Controller = controller
 
